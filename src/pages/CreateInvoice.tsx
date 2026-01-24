@@ -1,9 +1,15 @@
-import  { useState} from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Printer } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus, Trash2, Printer, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { calculateRent, calculateSubtotal, calculateGrandTotal, type AdditionalCost, type RentType } from '../lib/calculator';
+import { useDrive } from '../services/useDrive';
+import { generateInvoicePDF } from '../services/pdfGeneration';
 
 export default function CreateInvoice() {
+  const navigate = useNavigate();
+  const { isSignedIn, signIn, uploadFile, loading: driveLoading } = useDrive();
+  
   // Customer & Trip Details
   const [customerName, setCustomerName] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -24,6 +30,10 @@ export default function CreateInvoice() {
   const [newCostLabel, setNewCostLabel] = useState('');
   const [newCostAmount, setNewCostAmount] = useState('');
 
+  // Upload State
+  const [uploading, setUploading] = useState(false);
+
+
   // Totals
   const [enableDiscount, setEnableDiscount] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -38,7 +48,7 @@ export default function CreateInvoice() {
   
   const subtotal = calculateSubtotal(rentTotal, additionalCosts);
   
-  const {  gstAmount, grandTotal } = calculateGrandTotal(
+  const { gstAmount, grandTotal } = calculateGrandTotal(
     subtotal,
     enableDiscount ? discountAmount : 0,
     enableGst
@@ -56,6 +66,88 @@ export default function CreateInvoice() {
 
   const removeCost = (id: string) => {
     setAdditionalCosts(additionalCosts.filter(c => c.id !== id));
+  };
+
+  const handleGenerateInvoice = async () => {
+    try {
+
+      
+      // Validation
+      if (!customerName.trim()) {
+        toast.error('Please enter customer name');
+        return;
+      }
+      
+      if (startKm < 0 || endKm < 0) {
+        toast.error('KM readings cannot be negative');
+        return;
+      }
+
+      if (endKm < startKm) {
+        toast.error('End KM cannot be less than Start KM');
+        return;
+      }
+
+      if (startTime && endTime) {
+        if (new Date(endTime) < new Date(startTime)) {
+            toast.error('End Time cannot be before Start Time');
+            return;
+        }
+      }
+
+      setUploading(true);
+
+      // Check if signed in, if not, trigger sign-in
+      if (!isSignedIn) {
+        await signIn();
+      }
+
+      // 1. Prepare Invoice Data
+      const invoiceData = {
+        customerName,
+        driverName,
+        vehicleNo,
+        startKm,
+        endKm,
+        startTime,
+        endTime,
+        rentType,
+        fixedAmount,
+        hours,
+        ratePerHour,
+        additionalCosts,
+        enableDiscount,
+        discountAmount,
+        enableGst,
+        gstAmount,
+        grandTotal
+      };
+
+      // 2. Generate PDF Blob
+      const { blob, fileName } = generateInvoicePDF(invoiceData);
+      
+      // 3. Create File object
+      const pdfFile = new File([blob], fileName, { type: 'application/pdf' });
+      
+      // 4. Upload to Google Drive
+      const toastId = toast.loading('Uploading invoice...');
+      const result = await uploadFile(pdfFile, fileName);
+      
+      toast.success(`Invoice uploaded successfully!`, {
+        id: toastId,
+        duration: 4000
+      });
+      console.log('Upload successful:', result);
+      
+      // Navigate back to invoice list
+      navigate('/');
+    } catch (error) {
+      console.error('Upload error:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to upload invoice';
+      toast.error(msg);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -324,9 +416,22 @@ export default function CreateInvoice() {
                   </div>
                 </div>
 
-                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                  <Printer size={20} />
-                  Generate Invoice
+                <button 
+                  onClick={handleGenerateInvoice}
+                  disabled={uploading || driveLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  {uploading || driveLoading ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      {isSignedIn ? 'Uploading Invoice...' : 'Signing in...'}
+                    </>
+                  ) : (
+                    <>
+                      <Printer size={20} />
+                      Generate Invoice
+                    </>
+                  )}
                 </button>
              </div>
           </div>
