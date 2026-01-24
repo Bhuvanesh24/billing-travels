@@ -9,11 +9,17 @@ import { generateInvoicePDF } from '../services/pdfGeneration';
 export default function CreateInvoice() {
   const navigate = useNavigate();
   const { isSignedIn, signIn, uploadFile, loading: driveLoading } = useDrive();
-  
+
   // Customer & Trip Details
   const [customerName, setCustomerName] = useState('');
+  const [customerCompanyName, setCustomerCompanyName] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerGstNo, setCustomerGstNo] = useState('');
   const [driverName, setDriverName] = useState('');
   const [vehicleNo, setVehicleNo] = useState('');
+  const [vehicleType, setVehicleType] = useState('');
+  const [tripStartLocation, setTripStartLocation] = useState('');
+  const [tripEndLocation, setTripEndLocation] = useState('');
   const [startKm, setStartKm] = useState(0);
   const [endKm, setEndKm] = useState(0);
   const [startTime, setStartTime] = useState('');
@@ -38,6 +44,7 @@ export default function CreateInvoice() {
   const [enableDiscount, setEnableDiscount] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [enableGst, setEnableGst] = useState(false);
+  const [gstPercentage, setGstPercentage] = useState(5);
 
   // Computed Values
   const rentTotal = calculateRent(
@@ -45,13 +52,14 @@ export default function CreateInvoice() {
     rentType === 'fixed' ? fixedAmount : hours,
     ratePerHour
   );
-  
+
   const subtotal = calculateSubtotal(rentTotal, additionalCosts);
-  
+
   const { gstAmount, grandTotal } = calculateGrandTotal(
     subtotal,
     enableDiscount ? discountAmount : 0,
-    enableGst
+    enableGst,
+    gstPercentage / 100
   );
 
   const addCost = () => {
@@ -71,13 +79,13 @@ export default function CreateInvoice() {
   const handleGenerateInvoice = async () => {
     try {
 
-      
+
       // Validation
       if (!customerName.trim()) {
         toast.error('Please enter customer name');
         return;
       }
-      
+
       if (startKm < 0 || endKm < 0) {
         toast.error('KM readings cannot be negative');
         return;
@@ -90,8 +98,8 @@ export default function CreateInvoice() {
 
       if (startTime && endTime) {
         if (new Date(endTime) < new Date(startTime)) {
-            toast.error('End Time cannot be before Start Time');
-            return;
+          toast.error('End Time cannot be before Start Time');
+          return;
         }
       }
 
@@ -105,8 +113,14 @@ export default function CreateInvoice() {
       // 1. Prepare Invoice Data
       const invoiceData = {
         customerName,
+        customerCompanyName,
+        customerAddress,
+        customerGstNo,
         driverName,
         vehicleNo,
+        vehicleType,
+        tripStartLocation,
+        tripEndLocation,
         startKm,
         endKm,
         startTime,
@@ -119,26 +133,27 @@ export default function CreateInvoice() {
         enableDiscount,
         discountAmount,
         enableGst,
+        gstPercentage,
         gstAmount,
         grandTotal
       };
 
       // 2. Generate PDF Blob
       const { blob, fileName } = generateInvoicePDF(invoiceData);
-      
+
       // 3. Create File object
       const pdfFile = new File([blob], fileName, { type: 'application/pdf' });
-      
+
       // 4. Upload to Google Drive
       const toastId = toast.loading('Uploading invoice...');
       const result = await uploadFile(pdfFile, fileName);
-      
+
       toast.success(`Invoice uploaded successfully!`, {
         id: toastId,
         duration: 4000
       });
       console.log('Upload successful:', result);
-      
+
       // Navigate back to invoice list
       navigate('/');
     } catch (error) {
@@ -167,10 +182,10 @@ export default function CreateInvoice() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form Area */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* 1. Trip Details */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <h2 className="text-lg font-semibold mb-4 text-slate-800">Trip Details</h2>
+              <h2 className="text-lg font-semibold mb-4 text-slate-800">Customer & Trip Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
@@ -180,6 +195,36 @@ export default function CreateInvoice() {
                     placeholder="Enter customer name"
                     value={customerName}
                     onChange={e => setCustomerName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Enter company name"
+                    value={customerCompanyName}
+                    onChange={e => setCustomerCompanyName(e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Customer Address</label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Enter customer address"
+                    rows={2}
+                    value={customerAddress}
+                    onChange={e => setCustomerAddress(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Customer GST No</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="e.g. 22AAAAA0000A1Z5"
+                    value={customerGstNo}
+                    onChange={e => setCustomerGstNo(e.target.value)}
                   />
                 </div>
                 <div>
@@ -202,8 +247,38 @@ export default function CreateInvoice() {
                     onChange={e => setVehicleNo(e.target.value)}
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Type</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="e.g. Sedan, SUV, Bus"
+                    value={vehicleType}
+                    onChange={e => setVehicleType(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Trip Start Location</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Starting point"
+                    value={tripStartLocation}
+                    onChange={e => setTripStartLocation(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Trip End Location</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="Destination"
+                    value={tripEndLocation}
+                    onChange={e => setTripEndLocation(e.target.value)}
+                  />
+                </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4 mt-4 border-t pt-4 border-slate-100">
                 <div>
                   <label className="block text-xs text-slate-500 mb-1">Start KM</label>
@@ -214,7 +289,7 @@ export default function CreateInvoice() {
                     onChange={e => setStartKm(Number(e.target.value))}
                   />
                 </div>
-                 <div>
+                <div>
                   <label className="block text-xs text-slate-500 mb-1">End KM</label>
                   <input
                     type="number"
@@ -232,7 +307,7 @@ export default function CreateInvoice() {
                     onChange={e => setStartTime(e.target.value)}
                   />
                 </div>
-                 <div>
+                <div>
                   <label className="block text-xs text-slate-500 mb-1">End Time</label>
                   <input
                     type="datetime-local"
@@ -245,7 +320,7 @@ export default function CreateInvoice() {
             </div>
 
             {/* 2. Rent Calculation */}
-             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-slate-800">Rent Calculation</h2>
               <div className="flex bg-slate-100 rounded-lg p-1 mb-4 w-fit">
                 <button
@@ -254,7 +329,7 @@ export default function CreateInvoice() {
                 >
                   Fixed Amount
                 </button>
-                 <button
+                <button
                   className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rentType === 'day-wise' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setRentType('day-wise')}
                 >
@@ -264,36 +339,36 @@ export default function CreateInvoice() {
 
               {rentType === 'fixed' ? (
                 <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Total Fixed Amount (₹)</label>
-                   <input
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Total Fixed Amount (₹)</label>
+                  <input
                     type="number"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-medium"
                     placeholder="0.00"
                     value={fixedAmount || ''}
                     onChange={e => setFixedAmount(Number(e.target.value))}
-                   />
+                  />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Total Hours</label>
-                     <input
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Total Hours</label>
+                    <input
                       type="number"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                       placeholder="e.g. 8"
                       value={hours || ''}
                       onChange={e => setHours(Number(e.target.value))}
-                     />
+                    />
                   </div>
-                   <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Rate per Hour (₹)</label>
-                     <input
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Rate per Hour (₹)</label>
+                    <input
                       type="number"
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                       placeholder="0.00"
                       value={ratePerHour || ''}
                       onChange={e => setRatePerHour(Number(e.target.value))}
-                     />
+                    />
                   </div>
                 </div>
               )}
@@ -302,7 +377,7 @@ export default function CreateInvoice() {
             {/* 3. Additional Costs */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-slate-800">Additional Costs</h2>
-              
+
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
@@ -333,7 +408,7 @@ export default function CreateInvoice() {
                       <span className="text-slate-700">{cost.label}</span>
                       <div className="flex items-center gap-3">
                         <span className="font-medium">₹{cost.amount}</span>
-                         <button onClick={() => removeCost(cost.id)} className="text-red-400 hover:text-red-600">
+                        <button onClick={() => removeCost(cost.id)} className="text-red-400 hover:text-red-600">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -345,95 +420,111 @@ export default function CreateInvoice() {
               )}
             </div>
 
-             {/* 4. Controls */}
-             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                     <div className={`w-10 h-6 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer transition-colors ${enableDiscount ? 'bg-blue-600' : ''}`} onClick={() => setEnableDiscount(!enableDiscount)}>
-                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${enableDiscount ? 'translate-x-4' : ''}`}></div>
-                     </div>
-                     <span className="text-sm font-medium text-slate-700">Apply Discount</span>
+            {/* 4. Controls */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-10 h-6 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer transition-colors ${enableDiscount ? 'bg-blue-600' : ''}`} onClick={() => setEnableDiscount(!enableDiscount)}>
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${enableDiscount ? 'translate-x-4' : ''}`}></div>
                   </div>
-                  {enableDiscount && (
+                  <span className="text-sm font-medium text-slate-700">Apply Discount</span>
+                </div>
+                {enableDiscount && (
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    className="w-32 px-3 py-1 border border-slate-300 rounded-lg text-sm"
+                    value={discountAmount || ''}
+                    onChange={e => setDiscountAmount(Number(e.target.value))}
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-10 h-6 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer transition-colors ${enableGst ? 'bg-blue-600' : ''}`} onClick={() => setEnableGst(!enableGst)}>
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${enableGst ? 'translate-x-4' : ''}`}></div>
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Add GST</span>
+                </div>
+                {enableGst && (
+                  <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      placeholder="Amount"
-                      className="w-32 px-3 py-1 border border-slate-300 rounded-lg text-sm"
-                      value={discountAmount || ''}
-                      onChange={e => setDiscountAmount(Number(e.target.value))}
+                      placeholder="%"
+                      className="w-20 px-3 py-1 border border-slate-300 rounded-lg text-sm"
+                      value={gstPercentage || ''}
+                      onChange={e => setGstPercentage(Number(e.target.value))}
+                      min="0"
+                      max="100"
                     />
-                  )}
-                </div>
-
-                 <div className="flex items-center gap-2">
-                     <div className={`w-10 h-6 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer transition-colors ${enableGst ? 'bg-blue-600' : ''}`} onClick={() => setEnableGst(!enableGst)}>
-                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${enableGst ? 'translate-x-4' : ''}`}></div>
-                     </div>
-                     <span className="text-sm font-medium text-slate-700">Add GST (18%)</span>
+                    <span className="text-sm text-slate-500">%</span>
                   </div>
-             </div>
+                )}
+              </div>
+            </div>
 
           </div>
 
           {/* Preview / Sidebar */}
           <div className="lg:col-span-1">
-             <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg sticky top-6">
-                <h3 className="text-lg font-semibold mb-6">Bill Summary</h3>
-                
-                <div className="space-y-3 text-sm border-b border-slate-700 pb-4 mb-4">
-                  <div className="flex justify-between text-slate-300">
-                    <span>Rent</span>
-                    <span>₹{rentTotal.toFixed(2)}</span>
-                  </div>
-                  {additionalCosts.map(cost => (
-                    <div key={cost.id} className="flex justify-between text-slate-400">
-                      <span>{cost.label}</span>
-                      <span>₹{cost.amount.toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between font-medium pt-2 text-white">
-                    <span>Subtotal</span>
-                    <span>₹{subtotal.toFixed(2)}</span>
-                  </div>
-                  {enableDiscount && (
-                     <div className="flex justify-between text-green-400">
-                      <span>Discount</span>
-                      <span>-₹{discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
+            <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg sticky top-6">
+              <h3 className="text-lg font-semibold mb-6">Bill Summary</h3>
 
-                <div className="space-y-3 pb-6">
-                  {enableGst && (
-                     <div className="flex justify-between text-slate-300 text-sm">
-                      <span>GST (18%)</span>
-                      <span>₹{gstAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-2xl font-bold">
-                    <span>Total</span>
-                    <span>₹{grandTotal.toFixed(2)}</span>
-                  </div>
+              <div className="space-y-3 text-sm border-b border-slate-700 pb-4 mb-4">
+                <div className="flex justify-between text-slate-300">
+                  <span>Rent</span>
+                  <span>₹{rentTotal.toFixed(2)}</span>
                 </div>
+                {additionalCosts.map(cost => (
+                  <div key={cost.id} className="flex justify-between text-slate-400">
+                    <span>{cost.label}</span>
+                    <span>₹{cost.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between font-medium pt-2 text-white">
+                  <span>Subtotal</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
+                </div>
+                {enableDiscount && (
+                  <div className="flex justify-between text-green-400">
+                    <span>Discount</span>
+                    <span>-₹{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
 
-                <button 
-                  onClick={handleGenerateInvoice}
-                  disabled={uploading || driveLoading}
-                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
-                >
-                  {uploading || driveLoading ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      {isSignedIn ? 'Uploading Invoice...' : 'Signing in...'}
-                    </>
-                  ) : (
-                    <>
-                      <Printer size={20} />
-                      Generate Invoice
-                    </>
-                  )}
-                </button>
-             </div>
+              <div className="space-y-3 pb-6">
+                {enableGst && (
+                  <div className="flex justify-between text-slate-300 text-sm">
+                    <span>GST ({gstPercentage}%)</span>
+                    <span>₹{gstAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-2xl font-bold">
+                  <span>Total</span>
+                  <span>₹{grandTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleGenerateInvoice}
+                disabled={uploading || driveLoading}
+                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                {uploading || driveLoading ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    {isSignedIn ? 'Uploading Invoice...' : 'Signing in...'}
+                  </>
+                ) : (
+                  <>
+                    <Printer size={20} />
+                    Generate Invoice
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
