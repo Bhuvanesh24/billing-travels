@@ -1,37 +1,56 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
+
+// Constant VPA from user
+const UPI_VPA = '1975thilak-1@okicici';
+const MERCHANT_NAME = 'Gokilam Travels'; // Or 'Thilak Sambath' based on screenshot, but company name is safer
 
 export interface InvoiceData {
   customerName: string;
+  customerCompanyName: string;
+  customerAddress: string;
+  customerGstNo: string;
   driverName: string;
   vehicleNo: string;
+  vehicleType: string;
+  tripStartLocation: string;
+  tripEndLocation: string;
   startKm: number;
   endKm: number;
   startTime: string;
   endTime: string;
-  rentType: 'fixed' | 'day-wise';
+  rentType: 'fixed' | 'hour' | 'day' | 'km';
   fixedAmount: number;
   hours: number;
   ratePerHour: number;
+  days: number;
+  ratePerDay: number;
+  fuelLitres: number;
+  ratePerLitre: number;
+  totalKm: number;
+  freeKm: number;
+  ratePerKm: number;
   additionalCosts: { label: string; amount: number }[];
   enableDiscount: boolean;
   discountAmount: number;
   enableGst: boolean;
+  gstPercentage: number;
   gstAmount: number;
   grandTotal: number;
 }
 
-export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: string } => {
+export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blob; fileName: string }> => {
   const doc = new jsPDF();
-  
+
   // Date/Time for Bill No
   const now = new Date();
-  const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
+  const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
   const timeStr = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
   // Add a random 3-digit suffix for extra uniqueness
   const randomSuffix = Math.floor(Math.random() * 900 + 100);
   const billNo = `INV-${dateStr}-${timeStr}-${randomSuffix}`;
-  
+
   // Sanitize customer name for filename
   const cleanCustomerName = data.customerName ? data.customerName.replace(/[^a-z0-9]/gi, '_') : 'Customer';
   const fileName = `${billNo}_${cleanCustomerName}.pdf`;
@@ -41,7 +60,7 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   doc.setFontSize(22);
   doc.setTextColor(41, 128, 185); // Blue color scheme
   doc.text('Gokilam Travels', 105, 20, { align: 'center' });
-  
+
   // Company Details
   doc.setFontSize(10);
   doc.setTextColor(80);
@@ -49,7 +68,7 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   doc.text('Coimbatore - 641009', 105, 33, { align: 'center' });
   doc.text('Email: shivatravels1995@gmail.com', 105, 38, { align: 'center' });
   doc.text('Phone: 94436 82900, 82202 62205', 105, 43, { align: 'center' });
-  
+
   // Divider Line
   doc.setLineWidth(0.5);
   doc.setDrawColor(200);
@@ -58,14 +77,41 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   // --- Invoice Info ---
   doc.setFontSize(10);
   doc.setTextColor(0);
-  
+
   // Left Side: Bill To
   doc.setFont('helvetica', 'bold');
   doc.text('Bill To:', 15, 58);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Customer Name: ${data.customerName || '-'}`, 15, 64);
-  doc.text(`Vehicle No: ${data.vehicleNo || '-'}`, 15, 70);
-  doc.text(`Driver Name: ${data.driverName || '-'}`, 15, 76);
+
+  let currentY = 64;
+  const lineHeight = 5;
+
+
+
+  doc.text(`Customer Name: ${data.customerName || '-'}`, 15, currentY);
+  currentY += lineHeight;
+
+  if (data.customerCompanyName) {
+    doc.text(`Company: ${data.customerCompanyName}`, 15, currentY);
+    currentY += lineHeight;
+  }
+
+  if (data.customerAddress) {
+    // Split address into lines if too long
+    const addressLines = doc.splitTextToSize(`Address: ${data.customerAddress}`, 95); // Width limit for left column
+    doc.text(addressLines, 15, currentY);
+    currentY += (lineHeight * addressLines.length);
+  }
+
+  if (data.customerGstNo) {
+    doc.text(`GST No: ${data.customerGstNo}`, 15, currentY);
+    currentY += lineHeight;
+  }
+
+  doc.text(`Vehicle No: ${data.vehicleNo || '-'}`, 15, currentY);
+  currentY += lineHeight;
+  doc.text(`Driver Name: ${data.driverName || '-'}`, 15, currentY);
+  currentY += lineHeight;
 
   // Right Side: Invoice Details
   const rightColX = 130;
@@ -77,44 +123,76 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   doc.text(`Time: ${now.toLocaleTimeString()}`, rightColX, 76);
 
   // --- Trip Details Section ---
+  // Adjust starting Y dynamically based on left column height if needed, but usually Trip Details is lower
+  const tripDetailsY = Math.max(currentY + 5, 82);
+
   doc.setFillColor(245, 247, 250);
-  doc.roundedRect(15, 82, 180, 22, 2, 2, 'F');
-  
+  doc.roundedRect(15, tripDetailsY, 180, 22, 2, 2, 'F');
+
+  const tripTextY = tripDetailsY + 6;
+  const tripValueY = tripDetailsY + 12;
+
   doc.setFontSize(9);
-  doc.text('Trip Start', 20, 88);
+  doc.text('Trip Start', 20, tripTextY);
   doc.setFont('helvetica', 'bold');
-  doc.text(data.startTime ? new Date(data.startTime).toLocaleString() : '-', 20, 94);
-  
-  doc.setFont('helvetica', 'normal');
-  doc.text('Trip End', 70, 88);
-  doc.setFont('helvetica', 'bold');
-  doc.text(data.endTime ? new Date(data.endTime).toLocaleString() : '-', 70, 94);
+  doc.text(data.startTime ? new Date(data.startTime).toLocaleString() : '-', 20, tripValueY);
 
   doc.setFont('helvetica', 'normal');
-  doc.text('Total KM', 120, 88);
+  doc.text('Trip End', 70, tripTextY);
+  doc.setFont('helvetica', 'bold');
+  doc.text(data.endTime ? new Date(data.endTime).toLocaleString() : '-', 70, tripValueY);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Total KM', 120, tripTextY);
   doc.setFont('helvetica', 'bold');
   const kmDiff = data.endKm - data.startKm;
-  doc.text(`${kmDiff > 0 ? kmDiff : 0} km`, 120, 94);
-  
-  doc.setFont('helvetica', 'normal'); 
-  doc.text('KM Reading', 150, 88);
+  doc.text(`${kmDiff > 0 ? kmDiff : 0} km`, 120, tripValueY);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('KM Reading', 150, tripTextY);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${data.startKm} -> ${data.endKm}`, 150, 94);
+  doc.text(`${data.startKm} -> ${data.endKm}`, 150, tripValueY);
 
   // --- Items Table ---
   const tableBody = [];
-  
+
   // 1. Rent Item
   let rentDescription = '';
   let rentAmount = 0;
-  if (data.rentType === 'fixed') {
-    rentDescription = 'Vehicle Rent (Fixed Amount)';
-    rentAmount = data.fixedAmount;
-  } else {
-    rentDescription = `Vehicle Rent (${data.hours} hrs @ Rs${data.ratePerHour}/hr)`;
-    rentAmount = data.hours * data.ratePerHour;
+
+  switch (data.rentType) {
+    case 'fixed':
+      rentDescription = 'Vehicle Rent (Fixed Amount)';
+      rentAmount = data.fixedAmount;
+      break;
+    case 'hour':
+      rentDescription = `Vehicle Rent (${data.hours} hrs @ Rs${data.ratePerHour}/hr)`;
+      rentAmount = data.hours * data.ratePerHour;
+      break;
+    case 'day':
+      rentDescription = `Vehicle Rent (${data.days} days @ Rs${data.ratePerDay}/day)`;
+      rentAmount = data.days * data.ratePerDay;
+      // Add fuel as a separate line item
+      if (data.fuelLitres > 0 && data.ratePerLitre > 0) {
+        tableBody.push([rentDescription, rentAmount.toFixed(2)]);
+        tableBody.push([`Fuel (${data.fuelLitres} litres @ Rs${data.ratePerLitre}/L)`, (data.fuelLitres * data.ratePerLitre).toFixed(2)]);
+        rentAmount = 0; // Already added, skip the push below
+      }
+      break;
+    case 'km':
+      const billableKm = Math.max(0, data.totalKm - data.freeKm);
+      if (data.freeKm > 0) {
+        rentDescription = `Vehicle Rent (${data.totalKm} km - ${data.freeKm} free km = ${billableKm} km @ Rs${data.ratePerKm}/km)`;
+      } else {
+        rentDescription = `Vehicle Rent (${data.totalKm} km @ Rs${data.ratePerKm}/km)`;
+      }
+      rentAmount = billableKm * data.ratePerKm;
+      break;
   }
-  tableBody.push([rentDescription, rentAmount.toFixed(2)]);
+
+  if (rentAmount > 0) {
+    tableBody.push([rentDescription, rentAmount.toFixed(2)]);
+  }
 
   // 2. Additional Costs
   data.additionalCosts.forEach(cost => {
@@ -122,11 +200,11 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   });
 
   autoTable(doc, {
-    startY: 110,
+    startY: tripDetailsY + 28,
     head: [['Description', 'Amount (Rs)']],
     body: tableBody,
     theme: 'striped',
-    headStyles: { 
+    headStyles: {
       fillColor: [41, 128, 185],
       textColor: 255,
       fontStyle: 'bold'
@@ -146,6 +224,13 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   // --- Totals Section ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let finalY = (doc as any).lastAutoTable.finalY + 10;
+
+  // Check if we need a new page for totals
+  if (finalY > 240) {
+    doc.addPage();
+    finalY = 20;
+  }
+
   const totalsXLabel = 130;
   const totalsXValue = 190;
 
@@ -167,7 +252,7 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   }
 
   if (data.enableGst) {
-    doc.text('GST (18%):', totalsXLabel, finalY);
+    doc.text(`GST (${data.gstPercentage}%):`, totalsXLabel, finalY);
     doc.text(`Rs:${data.gstAmount.toFixed(2)}`, totalsXValue, finalY, { align: 'right' });
     finalY += 7;
   }
@@ -175,19 +260,60 @@ export const generateInvoicePDF = (data: InvoiceData): { blob: Blob; fileName: s
   // Grand Total Line
   doc.setLineWidth(0.5);
   doc.line(totalsXLabel - 5, finalY - 4, 195, finalY - 4);
-  
+
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Grand Total:', totalsXLabel, finalY + 2);
   doc.text(`Rs:${data.grandTotal.toFixed(2)}`, totalsXValue, finalY + 2, { align: 'right' });
 
+
+  // --- UPI QR Code Section ---
+  // Position it to the left of the totals, or below if space is tight.
+  // Ideally, bottom left of the last page or same level as totals if space permits.
+
+  // We'll put it on the left side of the totals area.
+  const qrX = 15;
+  const qrY = finalY - 25; // Roughly align with totals top
+  const qrSize = 35;
+
+  try {
+    // Generate UPI URI
+    // upi://pay?pa=...&pn=...&am=...&cu=INR
+    // encodeURIComponent is safer
+    const upiUri = `upi://pay?pa=${UPI_VPA}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${data.grandTotal.toFixed(2)}&cu=INR`;
+
+    // Generate QR Data URL
+    const qrDataUrl = await QRCode.toDataURL(upiUri, { errorCorrectionLevel: 'H' });
+
+    // Add QR Image
+    doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+
+    // Add "Scan to Pay" text
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185);
+    doc.text('Scan to Pay with GPay/PhonePe', qrX + (qrSize / 2), qrY + qrSize + 5, { align: 'center' });
+
+    // Make QR Clickable (Hyperlink)
+    doc.link(qrX, qrY, qrSize, qrSize, { url: upiUri });
+
+  } catch (err) {
+    console.error('Error generating QR code:', err);
+    // Fallback text if QR fails
+    doc.setFontSize(8);
+    doc.setTextColor(255, 0, 0);
+    doc.text('Error generating QR Code', qrX, qrY + 10);
+  }
+
+
   // Footer Message
+  const pageHeight = doc.internal.pageSize.height;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100);
-  doc.text('Compute only, valid without signature.', 105, 270, { align: 'center' });
+  doc.text('Compute only, valid without signature.', 105, pageHeight - 20, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.text('Thank you for travelling with us!', 105, 275, { align: 'center' });
+  doc.text('Thank you for travelling with us!', 105, pageHeight - 15, { align: 'center' });
 
   return { blob: doc.output('blob'), fileName };
 };

@@ -1,4 +1,4 @@
-export type RentType = 'fixed' | 'day-wise';
+export type RentType = 'fixed' | 'hour' | 'day' | 'km';
 
 export interface AdditionalCost {
   id: string;

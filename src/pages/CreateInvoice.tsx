@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Printer, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { calculateRent, calculateSubtotal, calculateGrandTotal, type AdditionalCost, type RentType } from '../lib/calculator';
+import { calculateSubtotal, calculateGrandTotal, type AdditionalCost, type RentType } from '../lib/calculator';
 import { useDrive } from '../services/useDrive';
 import { generateInvoicePDF } from '../services/pdfGeneration';
 
@@ -30,6 +30,13 @@ export default function CreateInvoice() {
   const [fixedAmount, setFixedAmount] = useState(0);
   const [hours, setHours] = useState(0);
   const [ratePerHour, setRatePerHour] = useState(0);
+  const [days, setDays] = useState(0);
+  const [ratePerDay, setRatePerDay] = useState(0);
+  const [fuelLitres, setFuelLitres] = useState(0);
+  const [ratePerLitre, setRatePerLitre] = useState(0);
+  const [totalKm, setTotalKm] = useState(0);
+  const [freeKm, setFreeKm] = useState(0);
+  const [ratePerKm, setRatePerKm] = useState(0);
 
   // Additional Costs
   const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([]);
@@ -47,11 +54,20 @@ export default function CreateInvoice() {
   const [gstPercentage, setGstPercentage] = useState(5);
 
   // Computed Values
-  const rentTotal = calculateRent(
-    rentType,
-    rentType === 'fixed' ? fixedAmount : hours,
-    ratePerHour
-  );
+  const rentTotal = (() => {
+    switch (rentType) {
+      case 'fixed':
+        return fixedAmount;
+      case 'hour':
+        return hours * ratePerHour;
+      case 'day':
+        return (days * ratePerDay) + (fuelLitres * ratePerLitre);
+      case 'km':
+        return Math.max(0, totalKm - freeKm) * ratePerKm;
+      default:
+        return 0;
+    }
+  })();
 
   const subtotal = calculateSubtotal(rentTotal, additionalCosts);
 
@@ -129,6 +145,13 @@ export default function CreateInvoice() {
         fixedAmount,
         hours,
         ratePerHour,
+        days,
+        ratePerDay,
+        fuelLitres,
+        ratePerLitre,
+        totalKm,
+        freeKm,
+        ratePerKm,
         additionalCosts,
         enableDiscount,
         discountAmount,
@@ -139,7 +162,7 @@ export default function CreateInvoice() {
       };
 
       // 2. Generate PDF Blob
-      const { blob, fileName } = generateInvoicePDF(invoiceData);
+      const { blob, fileName } = await generateInvoicePDF(invoiceData);
 
       // 3. Create File object
       const pdfFile = new File([blob], fileName, { type: 'application/pdf' });
@@ -322,22 +345,34 @@ export default function CreateInvoice() {
             {/* 2. Rent Calculation */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-slate-800">Rent Calculation</h2>
-              <div className="flex bg-slate-100 rounded-lg p-1 mb-4 w-fit">
+              <div className="flex bg-slate-100 rounded-lg p-1 mb-4 w-fit flex-wrap gap-1">
                 <button
                   className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rentType === 'fixed' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setRentType('fixed')}
                 >
-                  Fixed Amount
+                  Fixed
                 </button>
                 <button
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rentType === 'day-wise' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                  onClick={() => setRentType('day-wise')}
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rentType === 'hour' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setRentType('hour')}
                 >
-                  Day/Hour Rent
+                  Hour
+                </button>
+                <button
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rentType === 'day' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setRentType('day')}
+                >
+                  Day Rent
+                </button>
+                <button
+                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rentType === 'km' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setRentType('km')}
+                >
+                  KM
                 </button>
               </div>
 
-              {rentType === 'fixed' ? (
+              {rentType === 'fixed' && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Total Fixed Amount (₹)</label>
                   <input
@@ -348,7 +383,9 @@ export default function CreateInvoice() {
                     onChange={e => setFixedAmount(Number(e.target.value))}
                   />
                 </div>
-              ) : (
+              )}
+
+              {rentType === 'hour' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Total Hours</label>
@@ -368,6 +405,80 @@ export default function CreateInvoice() {
                       placeholder="0.00"
                       value={ratePerHour || ''}
                       onChange={e => setRatePerHour(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {rentType === 'day' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">No of Days</label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                        placeholder="e.g. 3"
+                        value={days || ''}
+                        onChange={e => setDays(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Amount per Day (₹)</label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                        placeholder="0.00"
+                        value={ratePerDay || ''}
+                        onChange={e => setRatePerDay(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Fuel (Litres)</label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                        placeholder="e.g. 50"
+                        value={fuelLitres || ''}
+                        onChange={e => setFuelLitres(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Rate per Litre (₹)</label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                        placeholder="0.00"
+                        value={ratePerLitre || ''}
+                        onChange={e => setRatePerLitre(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {rentType === 'km' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Total KM</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                      placeholder="e.g. 150"
+                      value={totalKm || ''}
+                      onChange={e => setTotalKm(Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount per KM (₹)</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                      placeholder="0.00"
+                      value={ratePerKm || ''}
+                      onChange={e => setRatePerKm(Number(e.target.value))}
                     />
                   </div>
                 </div>
