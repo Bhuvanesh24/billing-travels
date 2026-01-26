@@ -472,6 +472,16 @@ export default function CreateInvoice() {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Free KM</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                      placeholder="e.g. 50"
+                      value={freeKm || ''}
+                      onChange={e => setFreeKm(Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Amount per KM (₹)</label>
                     <input
                       type="number"
