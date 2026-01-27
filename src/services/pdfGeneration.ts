@@ -64,7 +64,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   // Company Name
   doc.setFontSize(22);
   doc.setTextColor(41, 128, 185); // Blue color scheme
-  doc.text('M/S Gokilam Travels', 105, 20, { align: 'center' });
+  doc.text('Gokilam Travels', 105, 20, { align: 'center' });
 
   // Company Details
   doc.setFontSize(10);
@@ -120,10 +120,11 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   currentY += lineHeight;
 
   if (data.tripStartLocation || data.tripEndLocation) {
+    doc.setFont('helvetica', 'bold');
     const tripRoute = `${data.tripStartLocation || '?'} → ${data.tripEndLocation || '?'}`;
-    const routeLines = doc.splitTextToSize(`Route: ${tripRoute}`, 95);
-    doc.text(routeLines, 15, currentY);
-    currentY += (lineHeight * routeLines.length);
+    doc.text(`Route: ${tripRoute}`, 15, currentY);
+    doc.setFont('helvetica', 'normal');
+    currentY += lineHeight;
   }
 
 
@@ -225,14 +226,14 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
       rentAmount = 0; // Already added individual items
       break;
     case 'day':
-      // Days * Rate per Day + Total KM * Fuel Charge per KM
+      // Days * Rate per Day + Chargeable KM * Fuel Charge per KM
       if (data.days > 0 && data.ratePerDay > 0) {
         const dayCharge = data.days * data.ratePerDay;
         tableBody.push([`Vehicle Rent (${data.days} days @ Rs${data.ratePerDay}/day)`, dayCharge.toFixed(2)]);
       }
-      if (data.totalKm > 0 && data.fuelChargePerKm > 0) {
-        const fuelCharge = data.totalKm * data.fuelChargePerKm;
-        tableBody.push([`Fuel Charges (${data.totalKm} km @ Rs${data.fuelChargePerKm}/km)`, fuelCharge.toFixed(2)]);
+      if (data.chargeableKm > 0 && data.fuelChargePerKm > 0) {
+        const fuelCharge = data.chargeableKm * data.fuelChargePerKm;
+        tableBody.push([`Fuel Charges (${data.chargeableKm} km @ Rs${data.fuelChargePerKm}/km)`, fuelCharge.toFixed(2)]);
       }
       rentAmount = 0; // Already added individual items
       break;
@@ -326,13 +327,11 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
 
 
   // --- UPI QR Code Section ---
-  // Position it to the left of the totals, or below if space is tight.
-  // Ideally, bottom left of the last page or same level as totals if space permits.
-
-  // We'll put it on the left side of the totals area.
-  const qrX = 15;
-  const qrY = finalY - 25; // Roughly align with totals top
+  // Position QR code at the bottom center, above the footer message
+  const pageHeight = doc.internal.pageSize.height;
   const qrSize = 35;
+  const qrX = (210 - qrSize) / 2; // Center horizontally (A4 width is 210mm)
+  const qrY = pageHeight - 65; // Position above footer messages
 
   try {
     // Generate UPI URI
@@ -350,7 +349,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 128, 185);
-    doc.text('Scan to Pay with GPay/PhonePe', qrX + (qrSize / 2), qrY + qrSize + 5, { align: 'center' });
+    doc.text('Scan to Pay with GPay/PhonePe', 105, qrY + qrSize + 5, { align: 'center' });
 
     // Make QR Clickable (Hyperlink)
     doc.link(qrX, qrY, qrSize, qrSize, { url: upiUri });
@@ -360,12 +359,11 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     // Fallback text if QR fails
     doc.setFontSize(8);
     doc.setTextColor(255, 0, 0);
-    doc.text('Error generating QR Code', qrX, qrY + 10);
+    doc.text('Error generating QR Code', 105, qrY + 10, { align: 'center' });
   }
 
 
   // Footer Message
-  const pageHeight = doc.internal.pageSize.height;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100);

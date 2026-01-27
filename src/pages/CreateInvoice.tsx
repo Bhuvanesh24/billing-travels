@@ -13,7 +13,7 @@ export default function CreateInvoice() {
   // Customer & Trip Details
   const [customerTitle, setCustomerTitle] = useState('Mr');
   const [customerName, setCustomerName] = useState('');
-  const [customerCompanyName, setCustomerCompanyName] = useState('');
+  const [customerCompanyName, setCustomerCompanyName] = useState('M/S ');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerGstNo, setCustomerGstNo] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -65,7 +65,7 @@ export default function CreateInvoice() {
       case 'hour':
         return (hours * ratePerHour) + (chargeableKm * chargePerKmHour);
       case 'day':
-        return (days * ratePerDay) + (totalKm * fuelChargePerKm);
+        return (days * ratePerDay) + (chargeableKm * fuelChargePerKm);
       case 'km':
         return chargeableKm * ratePerKm;
       default:
@@ -242,13 +242,16 @@ export default function CreateInvoice() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="Enter company name"
-                    value={customerCompanyName}
-                    onChange={e => setCustomerCompanyName(e.target.value)}
-                  />
+                  <div className="flex items-center border border-slate-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500">
+                    <span className="px-3 py-2 bg-slate-100 text-slate-700 font-medium border-r border-slate-300">M/S</span>
+                    <input
+                      type="text"
+                      className="flex-1 px-3 py-2 outline-none rounded-r-lg"
+                      placeholder="Enter company name"
+                      value={customerCompanyName.replace(/^M\/S\s*/, '')}
+                      onChange={e => setCustomerCompanyName('M/S ' + e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Customer Address</label>

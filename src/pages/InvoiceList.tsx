@@ -78,7 +78,7 @@ export default function InvoiceList() {
       <div className="max-w-6xl mx-auto">
         {/* Company Header */}
         <div className="bg-white rounded-xl p-6 mb-8 border border-slate-200 shadow-sm text-center">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2">M/S Gokilam Travels</h1>
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">Gokilam Travels</h1>
           <div className="text-slate-600 text-sm space-y-1">
             <p>30, Gokhale Street, Ram Nagar, Coimbatore - 641009</p>
             <div className="flex justify-center gap-4 flex-wrap">
