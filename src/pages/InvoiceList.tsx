@@ -36,14 +36,14 @@ export default function InvoiceList() {
       // Fetch 12 items per page, pass current search term (or query)
       const fetchQuery = query !== undefined ? query : searchTerm;
       const { files, nextPageToken: newToken } = await listPDFs(12, token, fetchQuery);
-      
+
       if (token) {
         setInvoices(prev => [...prev, ...files]);
       } else {
         setInvoices(files);
       }
       setNextPageToken(newToken);
-      
+
     } catch (error) {
       console.error('Failed to load invoices:', error);
     } finally {
@@ -66,11 +66,11 @@ export default function InvoiceList() {
   };
 
   if (!isInitialized) {
-     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-            <Loader2 className="animate-spin text-blue-600" size={32} />
-        </div>
-     );
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
+      </div>
+    );
   }
 
   return (
@@ -78,14 +78,14 @@ export default function InvoiceList() {
       <div className="max-w-6xl mx-auto">
         {/* Company Header */}
         <div className="bg-white rounded-xl p-6 mb-8 border border-slate-200 shadow-sm text-center">
-            <h1 className="text-3xl font-bold text-blue-600 mb-2">Gokilam Travels</h1>
-            <div className="text-slate-600 text-sm space-y-1">
-                <p>30, Gokhale Street, Ram Nagar, Coimbatore - 641009</p>
-                <div className="flex justify-center gap-4 flex-wrap">
-                    <p>📧 shivatravels1995@gmail.com</p>
-                    <p>📱 94436 82900, 82202 62205</p>
-                </div>
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">M/S Gokilam Travels</h1>
+          <div className="text-slate-600 text-sm space-y-1">
+            <p>30, Gokhale Street, Ram Nagar, Coimbatore - 641009</p>
+            <div className="flex justify-center gap-4 flex-wrap">
+              <p>📧 gokilam1950@gmail.com</p>
+              <p>📱 94436 82900, 82202 62205</p>
             </div>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -93,54 +93,54 @@ export default function InvoiceList() {
             <h2 className="text-2xl font-bold text-slate-900">Invoices</h2>
             <p className="text-slate-500 mt-1">Manage your travel invoices</p>
           </div>
-          
+
           <div className="flex items-center gap-3 w-full md:w-auto">
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder="Search invoices..." 
-                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    value={searchTerm}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setSearchTerm(val);
-                        if (val.trim() === '') {
-                            setNextPageToken(undefined);
-                            loadData(undefined, '');
-                        }
-                    }}
-                />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search invoices..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                value={searchTerm}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchTerm(val);
+                  if (val.trim() === '') {
+                    setNextPageToken(undefined);
+                    loadData(undefined, '');
+                  }
+                }}
+              />
             </form>
 
             <Link
-                to="/create"
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm whitespace-nowrap"
+              to="/create"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm whitespace-nowrap"
             >
-                <Plus size={20} />
-                New Invoice
+              <Plus size={20} />
+              New Invoice
             </Link>
           </div>
         </div>
 
         {!isSignedIn ? (
-           <div className="bg-white p-12 rounded-xl border border-slate-200 shadow-sm text-center">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <LogIn size={32} />
-              </div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">Connect to Google Drive</h2>
-              <p className="text-slate-500 mb-6 max-w-md mx-auto">
-                  Sign in with your Google account to view and manage your invoices stored in Google Drive.
-              </p>
-              <button 
-                onClick={() => signIn()}
-                className="inline-flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-2.5 rounded-lg font-medium transition-colors"
-                >
-                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
-                  Sign in with Google
-              </button>
-           </div>
+          <div className="bg-white p-12 rounded-xl border border-slate-200 shadow-sm text-center">
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <LogIn size={32} />
+            </div>
+            <h2 className="text-xl font-semibold text-slate-900 mb-2">Connect to Google Drive</h2>
+            <p className="text-slate-500 mb-6 max-w-md mx-auto">
+              Sign in with your Google account to view and manage your invoices stored in Google Drive.
+            </p>
+            <button
+              onClick={() => signIn()}
+              className="inline-flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-2.5 rounded-lg font-medium transition-colors"
+            >
+              <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
+              Sign in with Google
+            </button>
+          </div>
         ) : (
           <>
             {loading ? (
@@ -150,38 +150,38 @@ export default function InvoiceList() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {invoices.length === 0 ? (
-                    <div className="col-span-full text-center py-12 text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">
-                        No invoices found. Create one to get started!
-                    </div>
+                  <div className="col-span-full text-center py-12 text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">
+                    No invoices found. Create one to get started!
+                  </div>
                 ) : (
-                    invoices.map((file) => (
+                  invoices.map((file) => (
                     <div
-                        key={file.id}
-                        className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group"
+                      key={file.id}
+                      className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group"
                     >
-                        <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between">
                         <div className="p-3 bg-red-50 text-red-600 rounded-lg group-hover:scale-110 transition-transform">
-                            <FileText size={24} />
+                          <FileText size={24} />
                         </div>
                         <span className="text-xs font-medium text-slate-400">
-                            {file.createdTime ? new Date(file.createdTime).toLocaleDateString() : 'N/A'}
+                          {file.createdTime ? new Date(file.createdTime).toLocaleDateString() : 'N/A'}
                         </span>
-                        </div>
-                        <h3 className="mt-4 font-semibold text-slate-900 truncate" title={file.name}>
+                      </div>
+                      <h3 className="mt-4 font-semibold text-slate-900 truncate" title={file.name}>
                         {file.name}
-                        </h3>
-                        <div className="mt-4 flex gap-2">
-                        <a 
-                            href={file.webViewLink} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="flex-1 px-3 py-2 text-sm font-medium text-center text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                      </h3>
+                      <div className="mt-4 flex gap-2">
+                        <a
+                          href={file.webViewLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 px-3 py-2 text-sm font-medium text-center text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                         >
-                            View
+                          View
                         </a>
-                        </div>
+                      </div>
                     </div>
-                    ))
+                  ))
                 )}
               </div>
             )}

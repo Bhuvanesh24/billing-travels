@@ -7,6 +7,7 @@ const UPI_VPA = '1975thilak-1@okicici';
 const MERCHANT_NAME = 'Gokilam Travels'; // Or 'Thilak Sambath' based on screenshot, but company name is safer
 
 export interface InvoiceData {
+  customerTitle: string;
   customerName: string;
   customerCompanyName: string;
   customerAddress: string;
@@ -26,11 +27,15 @@ export interface InvoiceData {
   ratePerHour: number;
   days: number;
   ratePerDay: number;
-  fuelLitres: number;
-  ratePerLitre: number;
+  fuelLitres?: number;
+  ratePerLitre?: number;
   totalKm: number;
   freeKm: number;
+  chargeableKm: number;
   ratePerKm: number;
+  chargePerKmFixed: number;
+  chargePerKmHour: number;
+  fuelChargePerKm: number;
   additionalCosts: { label: string; amount: number }[];
   enableDiscount: boolean;
   discountAmount: number;
@@ -59,7 +64,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   // Company Name
   doc.setFontSize(22);
   doc.setTextColor(41, 128, 185); // Blue color scheme
-  doc.text('Gokilam Travels', 105, 20, { align: 'center' });
+  doc.text('M/S Gokilam Travels', 105, 20, { align: 'center' });
 
   // Company Details
   doc.setFontSize(10);
@@ -88,7 +93,8 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
 
 
 
-  doc.text(`Customer Name: ${data.customerName || '-'}`, 15, currentY);
+  const fullCustomerName = data.customerTitle ? `${data.customerTitle}. ${data.customerName}` : data.customerName;
+  doc.text(`Customer Name: ${fullCustomerName || '-'}`, 15, currentY);
   currentY += lineHeight;
 
   if (data.customerCompanyName) {
@@ -113,6 +119,14 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   doc.text(`Driver Name: ${data.driverName || '-'}`, 15, currentY);
   currentY += lineHeight;
 
+  if (data.tripStartLocation || data.tripEndLocation) {
+    const tripRoute = `${data.tripStartLocation || '?'} → ${data.tripEndLocation || '?'}`;
+    const routeLines = doc.splitTextToSize(`Route: ${tripRoute}`, 95);
+    doc.text(routeLines, 15, currentY);
+    currentY += (lineHeight * routeLines.length);
+  }
+
+
   // Right Side: Invoice Details
   const rightColX = 130;
   doc.setFont('helvetica', 'bold');
@@ -126,32 +140,58 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   // Adjust starting Y dynamically based on left column height if needed, but usually Trip Details is lower
   const tripDetailsY = Math.max(currentY + 5, 82);
 
+  // Increased height to accommodate more trip details
   doc.setFillColor(245, 247, 250);
-  doc.roundedRect(15, tripDetailsY, 180, 22, 2, 2, 'F');
+  doc.roundedRect(15, tripDetailsY, 180, 35, 2, 2, 'F');
 
   const tripTextY = tripDetailsY + 6;
   const tripValueY = tripDetailsY + 12;
+  const tripTextY2 = tripDetailsY + 20;
+  const tripValueY2 = tripDetailsY + 26;
 
   doc.setFontSize(9);
+
+  // First Row - Trip Times and Location
+  doc.setFont('helvetica', 'normal');
   doc.text('Trip Start', 20, tripTextY);
   doc.setFont('helvetica', 'bold');
-  doc.text(data.startTime ? new Date(data.startTime).toLocaleString() : '-', 20, tripValueY);
+  const startTimeText = data.startTime ? new Date(data.startTime).toLocaleString() : '-';
+  doc.text(startTimeText, 20, tripValueY);
 
   doc.setFont('helvetica', 'normal');
   doc.text('Trip End', 70, tripTextY);
   doc.setFont('helvetica', 'bold');
-  doc.text(data.endTime ? new Date(data.endTime).toLocaleString() : '-', 70, tripValueY);
+  const endTimeText = data.endTime ? new Date(data.endTime).toLocaleString() : '-';
+  doc.text(endTimeText, 70, tripValueY);
 
   doc.setFont('helvetica', 'normal');
-  doc.text('Total KM', 120, tripTextY);
+  doc.text('Vehicle Type', 120, tripTextY);
   doc.setFont('helvetica', 'bold');
-  const kmDiff = data.endKm - data.startKm;
-  doc.text(`${kmDiff > 0 ? kmDiff : 0} km`, 120, tripValueY);
+  doc.text(data.vehicleType || '-', 120, tripValueY);
 
   doc.setFont('helvetica', 'normal');
   doc.text('KM Reading', 150, tripTextY);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${data.startKm} -> ${data.endKm}`, 150, tripValueY);
+  doc.text(`${data.startKm} → ${data.endKm}`, 150, tripValueY);
+
+  // Second Row - KM Details
+  doc.setFont('helvetica', 'normal');
+  doc.text('Total KM', 20, tripTextY2);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${data.totalKm} km`, 20, tripValueY2);
+
+  if (data.freeKm > 0) {
+    doc.setFont('helvetica', 'normal');
+    doc.text('Free KM', 70, tripTextY2);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${data.freeKm} km`, 70, tripValueY2);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text('Chargeable KM', 120, tripTextY2);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${data.chargeableKm} km`, 120, tripValueY2);
+  }
+
 
   // --- Items Table ---
   const tableBody = [];
@@ -162,29 +202,47 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
 
   switch (data.rentType) {
     case 'fixed':
-      rentDescription = 'Vehicle Rent (Fixed Amount)';
-      rentAmount = data.fixedAmount;
+      // Fixed Amount + Chargeable KM * Charge per KM
+      if (data.fixedAmount > 0) {
+        tableBody.push(['Vehicle Rent (Fixed Amount)', data.fixedAmount.toFixed(2)]);
+      }
+      if (data.chargeableKm > 0 && data.chargePerKmFixed > 0) {
+        const kmCharge = data.chargeableKm * data.chargePerKmFixed;
+        tableBody.push([`KM Charges (${data.chargeableKm} km @ Rs${data.chargePerKmFixed}/km)`, kmCharge.toFixed(2)]);
+      }
+      rentAmount = 0; // Already added individual items
       break;
     case 'hour':
-      rentDescription = `Vehicle Rent (${data.hours} hrs @ Rs${data.ratePerHour}/hr)`;
-      rentAmount = data.hours * data.ratePerHour;
+      // Hours * Rate per Hour + Chargeable KM * Charge per KM
+      if (data.hours > 0 && data.ratePerHour > 0) {
+        const hourCharge = data.hours * data.ratePerHour;
+        tableBody.push([`Vehicle Rent (${data.hours} hrs @ Rs${data.ratePerHour}/hr)`, hourCharge.toFixed(2)]);
+      }
+      if (data.chargeableKm > 0 && data.chargePerKmHour > 0) {
+        const kmCharge = data.chargeableKm * data.chargePerKmHour;
+        tableBody.push([`KM Charges (${data.chargeableKm} km @ Rs${data.chargePerKmHour}/km)`, kmCharge.toFixed(2)]);
+      }
+      rentAmount = 0; // Already added individual items
       break;
     case 'day':
-      rentDescription = `Vehicle Rent (${data.days} days @ Rs${data.ratePerDay}/day)`;
-      rentAmount = data.days * data.ratePerDay;
-      // Add fuel as a separate line item
-      if (data.fuelLitres > 0 && data.ratePerLitre > 0) {
-        tableBody.push([rentDescription, rentAmount.toFixed(2)]);
-        tableBody.push([`Fuel (${data.fuelLitres} litres @ Rs${data.ratePerLitre}/L)`, (data.fuelLitres * data.ratePerLitre).toFixed(2)]);
-        rentAmount = 0; // Already added, skip the push below
+      // Days * Rate per Day + Total KM * Fuel Charge per KM
+      if (data.days > 0 && data.ratePerDay > 0) {
+        const dayCharge = data.days * data.ratePerDay;
+        tableBody.push([`Vehicle Rent (${data.days} days @ Rs${data.ratePerDay}/day)`, dayCharge.toFixed(2)]);
       }
+      if (data.totalKm > 0 && data.fuelChargePerKm > 0) {
+        const fuelCharge = data.totalKm * data.fuelChargePerKm;
+        tableBody.push([`Fuel Charges (${data.totalKm} km @ Rs${data.fuelChargePerKm}/km)`, fuelCharge.toFixed(2)]);
+      }
+      rentAmount = 0; // Already added individual items
       break;
     case 'km':
-      const billableKm = Math.max(0, data.totalKm - data.freeKm);
+      // Chargeable KM * Rate per KM
+      const billableKm = data.chargeableKm;
       if (data.freeKm > 0) {
         rentDescription = `Vehicle Rent (${data.totalKm} km - ${data.freeKm} free km = ${billableKm} km @ Rs${data.ratePerKm}/km)`;
       } else {
-        rentDescription = `Vehicle Rent (${data.totalKm} km @ Rs${data.ratePerKm}/km)`;
+        rentDescription = `Vehicle Rent (${billableKm} km @ Rs${data.ratePerKm}/km)`;
       }
       rentAmount = billableKm * data.ratePerKm;
       break;
@@ -200,7 +258,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   });
 
   autoTable(doc, {
-    startY: tripDetailsY + 28,
+    startY: tripDetailsY + 41,  // Adjusted for larger trip details box (35px height + 6px padding)
     head: [['Description', 'Amount (Rs)']],
     body: tableBody,
     theme: 'striped',

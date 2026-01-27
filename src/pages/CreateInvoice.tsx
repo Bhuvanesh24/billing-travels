@@ -11,6 +11,7 @@ export default function CreateInvoice() {
   const { isSignedIn, signIn, uploadFile, loading: driveLoading } = useDrive();
 
   // Customer & Trip Details
+  const [customerTitle, setCustomerTitle] = useState('Mr');
   const [customerName, setCustomerName] = useState('');
   const [customerCompanyName, setCustomerCompanyName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
@@ -32,11 +33,11 @@ export default function CreateInvoice() {
   const [ratePerHour, setRatePerHour] = useState(0);
   const [days, setDays] = useState(0);
   const [ratePerDay, setRatePerDay] = useState(0);
-  const [fuelLitres, setFuelLitres] = useState(0);
-  const [ratePerLitre, setRatePerLitre] = useState(0);
-  const [totalKm, setTotalKm] = useState(0);
+  const [fuelChargePerKm, setFuelChargePerKm] = useState(0);
   const [freeKm, setFreeKm] = useState(0);
   const [ratePerKm, setRatePerKm] = useState(0);
+  const [chargePerKmFixed, setChargePerKmFixed] = useState(0);
+  const [chargePerKmHour, setChargePerKmHour] = useState(0);
 
   // Additional Costs
   const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([]);
@@ -53,17 +54,20 @@ export default function CreateInvoice() {
   const [enableGst, setEnableGst] = useState(false);
   const [gstPercentage, setGstPercentage] = useState(5);
 
-  // Computed Values
+  // Computed Values - Auto-calculate from Start/End KM
+  const totalKm = Math.max(0, endKm - startKm);
+  const chargeableKm = Math.max(0, totalKm - freeKm);
+
   const rentTotal = (() => {
     switch (rentType) {
       case 'fixed':
-        return fixedAmount;
+        return fixedAmount + (chargeableKm * chargePerKmFixed);
       case 'hour':
-        return hours * ratePerHour;
+        return (hours * ratePerHour) + (chargeableKm * chargePerKmHour);
       case 'day':
-        return (days * ratePerDay) + (fuelLitres * ratePerLitre);
+        return (days * ratePerDay) + (totalKm * fuelChargePerKm);
       case 'km':
-        return Math.max(0, totalKm - freeKm) * ratePerKm;
+        return chargeableKm * ratePerKm;
       default:
         return 0;
     }
@@ -128,6 +132,7 @@ export default function CreateInvoice() {
 
       // 1. Prepare Invoice Data
       const invoiceData = {
+        customerTitle,
         customerName,
         customerCompanyName,
         customerAddress,
@@ -147,11 +152,13 @@ export default function CreateInvoice() {
         ratePerHour,
         days,
         ratePerDay,
-        fuelLitres,
-        ratePerLitre,
+        fuelChargePerKm,
         totalKm,
         freeKm,
+        chargeableKm,
         ratePerKm,
+        chargePerKmFixed,
+        chargePerKmHour,
         additionalCosts,
         enableDiscount,
         discountAmount,
@@ -210,15 +217,28 @@ export default function CreateInvoice() {
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-slate-800">Customer & Trip Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="Enter customer name"
-                    value={customerName}
-                    onChange={e => setCustomerName(e.target.value)}
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      className="w-24 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                      value={customerTitle}
+                      onChange={e => setCustomerTitle(e.target.value)}
+                    >
+                      <option value="Mr">Mr</option>
+                      <option value="Mrs">Mrs</option>
+                      <option value="Ms">Ms</option>
+                      <option value="Dr">Dr</option>
+                      <option value="M/S">M/S</option>
+                    </select>
+                    <input
+                      type="text"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Enter customer name"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
@@ -339,6 +359,25 @@ export default function CreateInvoice() {
                     onChange={e => setEndTime(e.target.value)}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Free KM</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                    placeholder="e.g. 50"
+                    value={freeKm || ''}
+                    onChange={e => setFreeKm(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Chargeable KM</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-100"
+                    value={chargeableKm}
+                    disabled
+                  />
+                </div>
               </div>
             </div>
 
@@ -373,15 +412,36 @@ export default function CreateInvoice() {
               </div>
 
               {rentType === 'fixed' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Total Fixed Amount (₹)</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-medium"
-                    placeholder="0.00"
-                    value={fixedAmount || ''}
-                    onChange={e => setFixedAmount(Number(e.target.value))}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Total Fixed Amount (₹)</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-medium"
+                      placeholder="0.00"
+                      value={fixedAmount || ''}
+                      onChange={e => setFixedAmount(Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Charge per KM (₹)</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="0.00"
+                      value={chargePerKmFixed || ''}
+                      onChange={e => setChargePerKmFixed(Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Chargeable KM</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100"
+                      value={chargeableKm}
+                      disabled
+                    />
+                  </div>
                 </div>
               )}
 
@@ -405,6 +465,25 @@ export default function CreateInvoice() {
                       placeholder="0.00"
                       value={ratePerHour || ''}
                       onChange={e => setRatePerHour(Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Charge per KM (₹)</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                      placeholder="0.00"
+                      value={chargePerKmHour || ''}
+                      onChange={e => setChargePerKmHour(Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Chargeable KM</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100"
+                      value={chargeableKm}
+                      disabled
                     />
                   </div>
                 </div>
@@ -436,23 +515,22 @@ export default function CreateInvoice() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Fuel (Litres)</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Chargeable KM</label>
                       <input
                         type="number"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                        placeholder="e.g. 50"
-                        value={fuelLitres || ''}
-                        onChange={e => setFuelLitres(Number(e.target.value))}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100"
+                        value={chargeableKm}
+                        disabled
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Rate per Litre (₹)</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Fuel Charge per KM (₹)</label>
                       <input
                         type="number"
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                         placeholder="0.00"
-                        value={ratePerLitre || ''}
-                        onChange={e => setRatePerLitre(Number(e.target.value))}
+                        value={fuelChargePerKm || ''}
+                        onChange={e => setFuelChargePerKm(Number(e.target.value))}
                       />
                     </div>
                   </div>
@@ -462,23 +540,12 @@ export default function CreateInvoice() {
               {rentType === 'km' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Total KM</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Chargeable KM</label>
                     <input
                       type="number"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                      placeholder="e.g. 150"
-                      value={totalKm || ''}
-                      onChange={e => setTotalKm(Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Free KM</label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                      placeholder="e.g. 50"
-                      value={freeKm || ''}
-                      onChange={e => setFreeKm(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100"
+                      value={chargeableKm}
+                      disabled
                     />
                   </div>
                   <div>
