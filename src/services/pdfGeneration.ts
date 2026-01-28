@@ -120,12 +120,11 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   currentY += lineHeight;
 
   if (data.tripStartLocation || data.tripEndLocation) {
-    doc.setFont('helvetica', 'bold');
-    const tripRoute = `${data.tripStartLocation || '?'} → ${data.tripEndLocation || '?'}`;
+    const tripRoute = `${data.tripStartLocation || '-'} → ${data.tripEndLocation || '-'}`;
     doc.text(`Route: ${tripRoute}`, 15, currentY);
-    doc.setFont('helvetica', 'normal');
     currentY += lineHeight;
   }
+
 
 
   // Right Side: Invoice Details
@@ -349,7 +348,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 128, 185);
-    doc.text('Scan to Pay with GPay/PhonePe', 105, qrY + qrSize + 5, { align: 'center' });
+    doc.text('Open GPay/PhonePe and scan this QR code to pay', 105, qrY + qrSize + 5, { align: 'center' });
 
     // Make QR Clickable (Hyperlink)
     doc.link(qrX, qrY, qrSize, qrSize, { url: upiUri });
