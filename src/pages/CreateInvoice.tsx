@@ -53,6 +53,7 @@ export default function CreateInvoice() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [enableGst, setEnableGst] = useState(false);
   const [gstPercentage, setGstPercentage] = useState(5);
+  const [advance, setAdvance] = useState(0);
 
   // Computed Values - Auto-calculate from Start/End KM
   const totalKm = Math.max(0, endKm - startKm);
@@ -165,6 +166,7 @@ export default function CreateInvoice() {
         enableGst,
         gstPercentage,
         gstAmount,
+        advance,
         grandTotal
       };
 
@@ -653,6 +655,18 @@ export default function CreateInvoice() {
                   </div>
                 )}
               </div>
+
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700">Advance Amount</label>
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  className="w-32 px-3 py-1 border border-slate-300 rounded-lg text-sm"
+                  value={advance || ''}
+                  onChange={e => setAdvance(Number(e.target.value))}
+                />
+              </div>
+
             </div>
 
           </div>
@@ -692,9 +706,15 @@ export default function CreateInvoice() {
                     <span>₹{gstAmount.toFixed(2)}</span>
                   </div>
                 )}
+                {advance > 0 && (
+                  <div className="flex justify-between text-amber-400 text-sm">
+                    <span>Advance</span>
+                    <span>-₹{advance.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-2xl font-bold">
                   <span>Total</span>
-                  <span>₹{grandTotal.toFixed(2)}</span>
+                  <span>₹{(grandTotal - advance).toFixed(2)}</span>
                 </div>
               </div>
 

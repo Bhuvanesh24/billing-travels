@@ -42,6 +42,7 @@ export interface InvoiceData {
   enableGst: boolean;
   gstPercentage: number;
   gstAmount: number;
+  advance: number;
   grandTotal: number;
 }
 
@@ -71,7 +72,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   doc.setTextColor(80);
   doc.text('30, Gokhale Street, Ram Nagar,', 105, 28, { align: 'center' });
   doc.text('Coimbatore - 641009', 105, 33, { align: 'center' });
-  doc.text('Email: shivatravels1995@gmail.com', 105, 38, { align: 'center' });
+  doc.text('Email: gokilam1950@gmail.com', 105, 38, { align: 'center' });
   doc.text('Phone: 94436 82900, 82202 62205', 105, 43, { align: 'center' });
 
   // Divider Line
@@ -239,14 +240,16 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
       break;
     case 'km':
       // Chargeable KM * Rate per KM
-      const billableKm = data.chargeableKm;
+      {
+        const billableKm = data.chargeableKm;
       if (data.freeKm > 0) {
         rentDescription = `Vehicle Rent (${data.totalKm} km - ${data.freeKm} free km = ${billableKm} km @ Rs${data.ratePerKm}/km)`;
       } else {
         rentDescription = `Vehicle Rent (${billableKm} km @ Rs${data.ratePerKm}/km)`;
       }
       rentAmount = billableKm * data.ratePerKm;
-      break;
+        break;
+      }
   }
 
   if (rentAmount > 0) {
@@ -316,14 +319,23 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     finalY += 7;
   }
 
+  if (data.advance > 0) {
+    doc.setTextColor(220, 140, 0); // Amber/Orange color
+    doc.text('Advance:', totalsXLabel, finalY);
+    doc.text(`-Rs:${data.advance.toFixed(2)}`, totalsXValue, finalY, { align: 'right' });
+    doc.setTextColor(0);
+    finalY += 7;
+  }
+
   // Grand Total Line
   doc.setLineWidth(0.5);
   doc.line(totalsXLabel - 5, finalY - 4, 195, finalY - 4);
 
+  const finalTotal = data.grandTotal - data.advance;
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Grand Total:', totalsXLabel, finalY + 2);
-  doc.text(`Rs:${data.grandTotal.toFixed(2)}`, totalsXValue, finalY + 2, { align: 'right' });
+  doc.text(`Rs:${finalTotal.toFixed(2)}`, totalsXValue, finalY + 2, { align: 'right' });
 
 
   // --- UPI QR Code Section ---
@@ -337,7 +349,8 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     // Generate UPI URI
     // upi://pay?pa=...&pn=...&am=...&cu=INR
     // encodeURIComponent is safer
-    const upiUri = `upi://pay?pa=${UPI_VPA}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${data.grandTotal.toFixed(2)}&cu=INR`;
+    const finalTotal = data.grandTotal - data.advance;
+    const upiUri = `upi://pay?pa=${UPI_VPA}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalTotal.toFixed(2)}&cu=INR`;
 
     // Generate QR Data URL
     const qrDataUrl = await QRCode.toDataURL(upiUri, { errorCorrectionLevel: 'H' });
