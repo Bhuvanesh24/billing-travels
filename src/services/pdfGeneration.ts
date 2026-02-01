@@ -104,8 +104,8 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   }
 
   if (data.customerAddress) {
-    // Split address into lines if too long
-    const addressLines = doc.splitTextToSize(`Address: ${data.customerAddress}`, 95); // Width limit for left column
+    // Split address into lines if too long - extend to right column boundary
+    const addressLines = doc.splitTextToSize(`Address: ${data.customerAddress}`, 115);
     doc.text(addressLines, 15, currentY);
     currentY += (lineHeight * addressLines.length);
   }
@@ -120,9 +120,13 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   doc.text(`Driver Name: ${data.driverName || '-'}`, 15, currentY);
   currentY += lineHeight;
 
-  if (data.tripStartLocation || data.tripEndLocation) {
-    const tripRoute = `${data.tripStartLocation || '-'} → ${data.tripEndLocation || '-'}`;
-    doc.text(`Route: ${tripRoute}`, 15, currentY);
+  if (data.tripStartLocation) {
+    doc.text(`From: ${data.tripStartLocation}`, 15, currentY);
+    currentY += lineHeight;
+  }
+
+  if (data.tripEndLocation) {
+    doc.text(`To: ${data.tripEndLocation}`, 15, currentY);
     currentY += lineHeight;
   }
 
@@ -171,9 +175,12 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   doc.text(data.vehicleType || '-', 120, tripValueY);
 
   doc.setFont('helvetica', 'normal');
-  doc.text('KM Reading', 150, tripTextY);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`${data.startKm} → ${data.endKm}`, 150, tripValueY);
+  doc.text('KM Reading', 165, tripTextY);
+  doc.setFontSize(7);
+  doc.text(`Start: ${data.startKm} km`, 165, tripValueY);
+  doc.text(`Closing: ${data.endKm} km`, 165, tripValueY + 4);
+  doc.setFontSize(9);
+
 
   // Second Row - KM Details
   doc.setFont('helvetica', 'normal');
@@ -241,12 +248,12 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
       // Chargeable KM * Rate per KM
       {
         const billableKm = data.chargeableKm;
-      if (data.freeKm > 0) {
-        rentDescription = `Vehicle Rent (${data.totalKm} km - ${data.freeKm} free km = ${billableKm} km @ Rs${data.ratePerKm}/km)`;
-      } else {
-        rentDescription = `Vehicle Rent (${billableKm} km @ Rs${data.ratePerKm}/km)`;
-      }
-      rentAmount = billableKm * data.ratePerKm;
+        if (data.freeKm > 0) {
+          rentDescription = `Vehicle Rent (${data.totalKm} km - ${data.freeKm} free km = ${billableKm} km @ Rs${data.ratePerKm}/km)`;
+        } else {
+          rentDescription = `Vehicle Rent (${billableKm} km @ Rs${data.ratePerKm}/km)`;
+        }
+        rentAmount = billableKm * data.ratePerKm;
         break;
       }
   }
