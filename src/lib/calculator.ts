@@ -30,14 +30,18 @@ export const calculateGrandTotal = (
   discount: number,
   enableGst: boolean,
   gstRate: number = 0.18
-): { totalBeforeTax: number; gstAmount: number; grandTotal: number } => {
+): { totalBeforeTax: number; gstAmount: number; cgstAmount: number; sgstAmount: number; grandTotal: number } => {
   const totalBeforeTax = Math.max(0, subtotal - discount);
   const gstAmount = enableGst ? totalBeforeTax * gstRate : 0;
+  const cgstAmount = enableGst ? gstAmount / 2 : 0;
+  const sgstAmount = enableGst ? gstAmount / 2 : 0;
   const grandTotal = totalBeforeTax + gstAmount;
 
   return {
     totalBeforeTax,
     gstAmount,
+    cgstAmount,
+    sgstAmount,
     grandTotal,
   };
 };

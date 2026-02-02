@@ -76,7 +76,7 @@ export default function CreateInvoice() {
 
   const subtotal = calculateSubtotal(rentTotal, additionalCosts);
 
-  const { gstAmount, grandTotal } = calculateGrandTotal(
+  const { gstAmount, cgstAmount, sgstAmount, grandTotal } = calculateGrandTotal(
     subtotal,
     enableDiscount ? discountAmount : 0,
     enableGst,
@@ -166,6 +166,8 @@ export default function CreateInvoice() {
         enableGst,
         gstPercentage,
         gstAmount,
+        cgstAmount,
+        sgstAmount,
         advance,
         grandTotal
       };

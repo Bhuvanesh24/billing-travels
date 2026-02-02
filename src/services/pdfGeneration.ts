@@ -42,6 +42,8 @@ export interface InvoiceData {
   enableGst: boolean;
   gstPercentage: number;
   gstAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
   advance: number;
   grandTotal: number;
 }
@@ -94,39 +96,41 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
 
 
 
+  // Define positions for aligned layout
+  const labelX = 15;
+  const colonX = 48;
+  const valueX = 52;
+
   const fullCustomerName = data.customerTitle ? `${data.customerTitle}. ${data.customerName}` : data.customerName;
-  doc.text(`Customer Name: ${fullCustomerName || '-'}`, 15, currentY);
+
+  // Customer Name
+  doc.text('Customer Name', labelX, currentY);
+  doc.text(':', colonX, currentY);
+  doc.text(fullCustomerName || '-', valueX, currentY);
   currentY += lineHeight;
 
+  // Company
   if (data.customerCompanyName) {
-    doc.text(`Company: ${data.customerCompanyName}`, 15, currentY);
+    doc.text('Company', labelX, currentY);
+    doc.text(':', colonX, currentY);
+    doc.text(data.customerCompanyName, valueX, currentY);
     currentY += lineHeight;
   }
 
+  // Address
   if (data.customerAddress) {
-    // Split address into lines if too long - extend to right column boundary
-    const addressLines = doc.splitTextToSize(`Address: ${data.customerAddress}`, 115);
-    doc.text(addressLines, 15, currentY);
+    doc.text('Address', labelX, currentY);
+    doc.text(':', colonX, currentY);
+    const addressLines = doc.splitTextToSize(data.customerAddress, 63); // Adjusted width for alignment
+    doc.text(addressLines, valueX, currentY);
     currentY += (lineHeight * addressLines.length);
   }
 
+  // GST No
   if (data.customerGstNo) {
-    doc.text(`GST No: ${data.customerGstNo}`, 15, currentY);
-    currentY += lineHeight;
-  }
-
-  doc.text(`Vehicle No: ${data.vehicleNo || '-'}`, 15, currentY);
-  currentY += lineHeight;
-  doc.text(`Driver Name: ${data.driverName || '-'}`, 15, currentY);
-  currentY += lineHeight;
-
-  if (data.tripStartLocation) {
-    doc.text(`From: ${data.tripStartLocation}`, 15, currentY);
-    currentY += lineHeight;
-  }
-
-  if (data.tripEndLocation) {
-    doc.text(`To: ${data.tripEndLocation}`, 15, currentY);
+    doc.text('GST No', labelX, currentY);
+    doc.text(':', colonX, currentY);
+    doc.text(data.customerGstNo, valueX, currentY);
     currentY += lineHeight;
   }
 
@@ -134,12 +138,60 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
 
   // Right Side: Invoice Details
   const rightColX = 130;
+  const rightLabelX = 130;
+  const rightColonX = 163;
+  const rightValueX = 167;
+  let rightY = 64;
+
   doc.setFont('helvetica', 'bold');
   doc.text('Invoice Details:', rightColX, 58);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Bill No: ${billNo}`, rightColX, 64);
-  doc.text(`Date: ${now.toLocaleDateString()}`, rightColX, 70);
-  doc.text(`Time: ${now.toLocaleTimeString()}`, rightColX, 76);
+
+  // Bill No
+  doc.text('Bill No', rightLabelX, rightY);
+  doc.text(':', rightColonX, rightY);
+  doc.text(billNo, rightValueX, rightY);
+  rightY += lineHeight;
+
+  // Date
+  doc.text('Date', rightLabelX, rightY);
+  doc.text(':', rightColonX, rightY);
+  doc.text(now.toLocaleDateString(), rightValueX, rightY);
+  rightY += lineHeight;
+
+  // Time
+  doc.text('Time', rightLabelX, rightY);
+  doc.text(':', rightColonX, rightY);
+  doc.text(now.toLocaleTimeString(), rightValueX, rightY);
+  rightY += lineHeight;
+
+  // Vehicle No
+  doc.text('Vehicle No', rightLabelX, rightY);
+  doc.text(':', rightColonX, rightY);
+  doc.text(data.vehicleNo || '-', rightValueX, rightY);
+  rightY += lineHeight;
+
+  // Driver Name
+  doc.text('Driver Name', rightLabelX, rightY);
+  doc.text(':', rightColonX, rightY);
+  doc.text(data.driverName || '-', rightValueX, rightY);
+  rightY += lineHeight;
+
+  // From
+  if (data.tripStartLocation) {
+    doc.text('From', rightLabelX, rightY);
+    doc.text(':', rightColonX, rightY);
+    doc.text(data.tripStartLocation, rightValueX, rightY);
+    rightY += lineHeight;
+  }
+
+  // To
+  if (data.tripEndLocation) {
+    doc.text('To', rightLabelX, rightY);
+    doc.text(':', rightColonX, rightY);
+    doc.text(data.tripEndLocation, rightValueX, rightY);
+    rightY += lineHeight;
+  }
 
   // --- Trip Details Section ---
   // Adjust starting Y dynamically based on left column height if needed, but usually Trip Details is lower
@@ -320,8 +372,13 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   }
 
   if (data.enableGst) {
-    doc.text(`GST (${data.gstPercentage}%):`, totalsXLabel, finalY);
-    doc.text(`Rs:${data.gstAmount.toFixed(2)}`, totalsXValue, finalY, { align: 'right' });
+    const halfGstPercentage = data.gstPercentage / 2;
+    doc.text(`CGST (${halfGstPercentage}%):`, totalsXLabel, finalY);
+    doc.text(`Rs:${data.cgstAmount.toFixed(2)}`, totalsXValue, finalY, { align: 'right' });
+    finalY += 7;
+
+    doc.text(`SGST (${halfGstPercentage}%):`, totalsXLabel, finalY);
+    doc.text(`Rs:${data.sgstAmount.toFixed(2)}`, totalsXValue, finalY, { align: 'right' });
     finalY += 7;
   }
 
