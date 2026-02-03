@@ -207,13 +207,18 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   doc.text(fullCustomerName || '-', valueX, currentY);
   currentY += lineHeight;
 
+  // Company
   if (data.customerCompanyName) {
+    doc.text('Company', labelX, currentY);
+    doc.text(':', colonX, currentY);
+    doc.text(data.customerCompanyName, valueX, currentY);
     doc.text('Company', labelX, currentY);
     doc.text(':', colonX, currentY);
     doc.text(data.customerCompanyName, valueX, currentY);
     currentY += lineHeight;
   }
 
+  // Address
   if (data.customerAddress) {
     doc.text('Address', labelX, currentY);
     doc.text(':', colonX, currentY);
@@ -223,12 +228,17 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     currentY += (lineHeight * addressLines.length);
   }
 
+  // GST No
   if (data.customerGstNo) {
+    doc.text('GST No', labelX, currentY);
+    doc.text(':', colonX, currentY);
+    doc.text(data.customerGstNo, valueX, currentY);
     doc.text('GST No', labelX, currentY);
     doc.text(':', colonX, currentY);
     doc.text(data.customerGstNo, valueX, currentY);
     currentY += lineHeight;
   }
+
 
 
 
@@ -392,6 +402,12 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
       // Chargeable KM * Rate per KM
       {
         const billableKm = data.chargeableKm;
+        if (data.freeKm > 0) {
+          rentDescription = `Vehicle Rent (${data.totalKm} km - ${data.freeKm} free km = ${billableKm} km @ Rs${data.ratePerKm}/km)`;
+        } else {
+          rentDescription = `Vehicle Rent (${billableKm} km @ Rs${data.ratePerKm}/km)`;
+        }
+        rentAmount = billableKm * data.ratePerKm;
         if (data.freeKm > 0) {
           rentDescription = `Vehicle Rent (${data.totalKm} km - ${data.freeKm} free km = ${billableKm} km @ Rs${data.ratePerKm}/km)`;
         } else {
