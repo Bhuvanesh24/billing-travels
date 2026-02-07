@@ -83,7 +83,7 @@ export default function InvoiceList() {
             <p>30, Gokhale Street, Ram Nagar, Coimbatore - 641009</p>
             <div className="flex justify-center gap-4 flex-wrap">
               <p>📧 gokilam1950@gmail.com</p>
-              <p>📱 94436 82900, 82202 62205</p>
+              <p>📱 8220262205, 9443682900</p>
             </div>
           </div>
         </div>

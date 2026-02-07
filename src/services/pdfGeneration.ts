@@ -165,7 +165,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   // Phone numbers in blue and bold
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(41, 128, 185); // Blue color
-  doc.text('Cell : 98425 48549, 94436 82900', 105, 37, { align: 'center' });
+  doc.text('Cell : 8220262205, 9443682900', 105, 37, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0); // Back to black
