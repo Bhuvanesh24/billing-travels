@@ -89,10 +89,6 @@ export default function LoginPage() {
                         </button>
                     </form>
                 </div>
-
-                <p className="text-center text-xs text-slate-400 mt-6">
-                    &copy; 2026 Gokilam Travels. All rights reserved.
-                </p>
             </div>
         </div>
     );
