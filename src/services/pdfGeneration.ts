@@ -80,6 +80,7 @@ const formatDateTime = (date: Date | string): string => {
 };
 
 export interface InvoiceData {
+  billNumber: string;
   customerTitle: string;
   customerName: string;
   customerCompanyName: string;
@@ -131,13 +132,11 @@ export interface InvoiceData {
 export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blob; fileName: string }> => {
   const doc = new jsPDF();
 
-  // Date/Time for Bill No
+  // Use the sequential bill number from Firestore
+  const billNo = data.billNumber;
+
+  // Current date/time for the invoice
   const now = new Date();
-  const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
-  const timeStr = `${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-  // Add a random 3-digit suffix for extra uniqueness
-  const randomSuffix = Math.floor(Math.random() * 900 + 100);
-  const billNo = `INV-${dateStr}-${timeStr}-${randomSuffix}`;
 
   // Sanitize customer name for filename
   const cleanCustomerName = data.customerName ? data.customerName.replace(/[^a-z0-9]/gi, '_') : 'Customer';

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { calculateSubtotal, type AdditionalCost, type RentType } from '../lib/calculator';
 import { useDrive } from '../services/useDrive';
 import { generateInvoicePDF } from '../services/pdfGeneration';
+import { getNextBillNumber } from '../services/billNumberService';
 
 export default function CreateInvoice() {
   const navigate = useNavigate();
@@ -161,9 +162,21 @@ export default function CreateInvoice() {
         await signIn();
       }
 
+      // Get next sequential bill number from Firestore
+      const toastBillId = toast.loading('Generating bill number...');
+      let billNumber: string;
+      try {
+        billNumber = await getNextBillNumber();
+        toast.success(`Bill number: ${billNumber}`, { id: toastBillId });
+      } catch (error) {
+        toast.error('Failed to generate bill number', { id: toastBillId });
+        throw error;
+      }
+
 
       // 1. Prepare Invoice Data
       const invoiceData = {
+        billNumber,
         customerTitle,
         customerName,
         customerCompanyName,
