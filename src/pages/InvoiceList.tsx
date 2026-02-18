@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Plus, Loader2, LogIn, Search, Trash2 } from 'lucide-react';
+import { FileText, Plus, Loader2, LogIn, Search, Trash2, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDrive } from '../services/useDrive';
+import { useAuth } from '../services/AuthContext';
 import type { DriveFile } from '../services/google-drive-service';
 
 export default function InvoiceList() {
   const { isSignedIn, signIn, listPDFs, deleteFile, isInitialized } = useDrive();
+  const { logout } = useAuth();
   const [invoices, setInvoices] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
@@ -106,9 +108,9 @@ export default function InvoiceList() {
         </div>
 
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <div>
+          <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-slate-900">Invoices</h2>
-            <p className="text-slate-500 mt-1">Manage your travel invoices</p>
+            <p className="text-slate-500 mt-1 hidden md:block">&middot; Manage your travel invoices</p>
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -138,6 +140,15 @@ export default function InvoiceList() {
               <Plus size={20} />
               New Invoice
             </Link>
+
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap"
+              title="Logout"
+            >
+              <LogOut size={18} />
+              <span className="hidden md:inline">Logout</span>
+            </button>
           </div>
         </div>
 
