@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Printer, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Printer, Loader2, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { calculateSubtotal, type AdditionalCost, type RentType } from '../lib/calculator';
 import { useDrive } from '../services/useDrive';
@@ -128,6 +128,68 @@ export default function CreateInvoice() {
     setAdditionalCosts(additionalCosts.filter(c => c.id !== id));
   };
 
+  // Build invoice data object (shared between preview and generate)
+  const buildInvoiceData = (billNumber: string) => ({
+    billNumber,
+    customerTitle,
+    customerName,
+    customerCompanyName,
+    customerAddress,
+    customerGstNo,
+    driverName,
+    vehicleNo,
+    vehicleType,
+    tripStartLocation,
+    tripEndLocation,
+    startKm,
+    endKm,
+    startTime,
+    endTime,
+    rentType,
+    fixedAmount,
+    hours,
+    ratePerHour,
+    days,
+    ratePerDay,
+    fuelChargePerKm,
+    totalKm,
+    freeKm,
+    chargeableKm,
+    ratePerKm,
+    chargePerKmFixed,
+    chargePerKmHour,
+    additionalCosts,
+    enableDriverBeta,
+    driverBetaDays,
+    driverBetaAmountPerDay,
+    enableNightHalt,
+    nightHaltDays,
+    nightHaltAmountPerDay,
+    enableDiscount,
+    discountAmount,
+    enableGst,
+    gstPercentage,
+    gstAmount,
+    enableIgst,
+    igstPercentage,
+    igstAmount,
+    advance,
+    grandTotal
+  });
+
+  const handlePreviewInvoice = async () => {
+    try {
+      const invoiceData = buildInvoiceData('#PREVIEW');
+      const { blob } = await generateInvoicePDF(invoiceData);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Preview error:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to preview invoice';
+      toast.error(msg);
+    }
+  };
+
   const handleGenerateInvoice = async () => {
     try {
 
@@ -175,53 +237,7 @@ export default function CreateInvoice() {
 
 
       // 1. Prepare Invoice Data
-      const invoiceData = {
-        billNumber,
-        customerTitle,
-        customerName,
-        customerCompanyName,
-        customerAddress,
-        customerGstNo,
-        driverName,
-        vehicleNo,
-        vehicleType,
-        tripStartLocation,
-        tripEndLocation,
-        startKm,
-        endKm,
-        startTime,
-        endTime,
-        rentType,
-        fixedAmount,
-        hours,
-        ratePerHour,
-        days,
-        ratePerDay,
-        fuelChargePerKm,
-        totalKm,
-        freeKm,
-        chargeableKm,
-        ratePerKm,
-        chargePerKmFixed,
-        chargePerKmHour,
-        additionalCosts,
-        enableDriverBeta,
-        driverBetaDays,
-        driverBetaAmountPerDay,
-        enableNightHalt,
-        nightHaltDays,
-        nightHaltAmountPerDay,
-        enableDiscount,
-        discountAmount,
-        enableGst,
-        gstPercentage,
-        gstAmount,
-        enableIgst,
-        igstPercentage,
-        igstAmount,
-        advance,
-        grandTotal
-      };
+      const invoiceData = buildInvoiceData(billNumber);
 
       // 2. Generate PDF Blob
       const { blob, fileName } = await generateInvoicePDF(invoiceData);
@@ -620,7 +636,7 @@ export default function CreateInvoice() {
               )}
             </div>
 
-            {/* 3. Driver Beta & Night Halt */}
+            {/* 3. Driver Beta & Outstation Driver Charges */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -654,7 +670,7 @@ export default function CreateInvoice() {
                   <div className={`w-10 h-6 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer transition-colors ${enableNightHalt ? 'bg-blue-600' : ''}`} onClick={() => setEnableNightHalt(!enableNightHalt)}>
                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${enableNightHalt ? 'translate-x-4' : ''}`}></div>
                   </div>
-                  <span className="text-sm font-medium text-slate-700">Night Halt</span>
+                  <span className="text-sm font-medium text-slate-700">Outstation Driver Charges</span>
                 </div>
                 {enableNightHalt && (
                   <div className="flex gap-2">
@@ -828,7 +844,7 @@ export default function CreateInvoice() {
                 )}
                 {enableNightHalt && nightHaltTotal > 0 && (
                   <div className="flex justify-between text-slate-400">
-                    <span>Night Halt ({nightHaltDays}d)</span>
+                    <span>Outstation Driver Charges ({nightHaltDays}d)</span>
                     <span>₹{nightHaltTotal.toFixed(2)}</span>
                   </div>
                 )}
@@ -868,6 +884,14 @@ export default function CreateInvoice() {
                   <span>₹{(grandTotal - advance).toFixed(2)}</span>
                 </div>
               </div>
+
+              <button
+                onClick={handlePreviewInvoice}
+                className="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors mb-3"
+              >
+                <Eye size={20} />
+                Preview Invoice
+              </button>
 
               <button
                 onClick={handleGenerateInvoice}

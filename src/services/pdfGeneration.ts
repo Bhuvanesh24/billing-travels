@@ -299,21 +299,25 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
   const rightTripColonX = 155;
   const rightTripValueX = 158;
 
-  // Row 1: From | Trip Start
+  // Row 1: From (full width with text wrapping)
   doc.text('From', leftColX, tripY);
   doc.text(':', leftColonX, tripY);
-  doc.text(data.tripStartLocation || '-', leftValueX, tripY);
+  const fromLines = doc.splitTextToSize(data.tripStartLocation || '-', 130);
+  doc.text(fromLines, leftValueX, tripY);
+  tripY += lineHeight * fromLines.length;
 
-  doc.text('Trip Start', rightTripColX, tripY);
-  doc.text(':', rightTripColonX, tripY);
-  const startTimeText = data.startTime ? formatDateTime(data.startTime) : '-';
-  doc.text(startTimeText, rightTripValueX, tripY);
-  tripY += lineHeight;
-
-  // Row 2: To | Trip End
+  // Row 2: To (full width with text wrapping)
   doc.text('To', leftColX, tripY);
   doc.text(':', leftColonX, tripY);
-  doc.text(data.tripEndLocation || '-', leftValueX, tripY);
+  const toLines = doc.splitTextToSize(data.tripEndLocation || '-', 130);
+  doc.text(toLines, leftValueX, tripY);
+  tripY += lineHeight * toLines.length;
+
+  // Row 3: Trip Start | Trip End (side by side — short values)
+  doc.text('Trip Start', leftColX, tripY);
+  doc.text(':', leftColonX, tripY);
+  const startTimeText = data.startTime ? formatDateTime(data.startTime) : '-';
+  doc.text(startTimeText, leftValueX, tripY);
 
   doc.text('Trip End', rightTripColX, tripY);
   doc.text(':', rightTripColonX, tripY);
@@ -432,10 +436,10 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     tableBody.push([`Driver Beta (${data.driverBetaDays} days @ Rs${data.driverBetaAmountPerDay}/day)`, driverBetaTotal.toFixed(2)]);
   }
 
-  // 4. Night Halt (NON-TAXABLE)
+  // 4. Outstation Driver Charges (NON-TAXABLE)
   if (data.enableNightHalt) {
     const nightHaltTotal = data.nightHaltDays * data.nightHaltAmountPerDay;
-    tableBody.push([`Night Halt (${data.nightHaltDays} days @ Rs${data.nightHaltAmountPerDay}/day)`, nightHaltTotal.toFixed(2)]);
+    tableBody.push([`Outstation Driver Charges (${data.nightHaltDays} days @ Rs${data.nightHaltAmountPerDay}/day)`, nightHaltTotal.toFixed(2)]);
   }
 
   autoTable(doc, {
@@ -499,7 +503,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     taxableSubTotal += parseFloat(tableBody[i][1] as string);
   }
 
-  // Calculate NON-TAXABLE amount (additional costs + driver beta + night halt)
+  // Calculate NON-TAXABLE amount (additional costs + driver beta + outstation driver charges)
   let nonTaxableSubTotal = 0;
 
   // Additional costs
@@ -512,7 +516,7 @@ export const generateInvoicePDF = async (data: InvoiceData): Promise<{ blob: Blo
     nonTaxableSubTotal += data.driverBetaDays * data.driverBetaAmountPerDay;
   }
 
-  // Night Halt
+  // Outstation Driver Charges
   if (data.enableNightHalt) {
     nonTaxableSubTotal += data.nightHaltDays * data.nightHaltAmountPerDay;
   }

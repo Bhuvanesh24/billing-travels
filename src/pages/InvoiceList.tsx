@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Plus, Loader2, LogIn, Search } from 'lucide-react';
+import { FileText, Plus, Loader2, LogIn, Search, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useDrive } from '../services/useDrive';
 import type { DriveFile } from '../services/google-drive-service';
 
 export default function InvoiceList() {
-  const { isSignedIn, signIn, listPDFs, isInitialized } = useDrive();
+  const { isSignedIn, signIn, listPDFs, deleteFile, isInitialized } = useDrive();
   const [invoices, setInvoices] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
@@ -63,6 +64,22 @@ export default function InvoiceList() {
     // Reset list and load with new search term
     setNextPageToken(undefined);
     loadData(undefined, searchTerm);
+  };
+
+  const handleDelete = async (file: DriveFile) => {
+    const confirmed = window.confirm(`Delete "${file.name}"?\n\nThis will permanently remove the invoice from Google Drive.`);
+    if (!confirmed) return;
+
+    const toastId = toast.loading('Deleting invoice...');
+    try {
+      await deleteFile(file.id);
+      // Remove from local state immediately
+      setInvoices(prev => prev.filter(f => f.id !== file.id));
+      toast.success('Invoice deleted', { id: toastId });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete invoice', { id: toastId });
+    }
   };
 
   if (!isInitialized) {
@@ -179,6 +196,13 @@ export default function InvoiceList() {
                         >
                           View
                         </a>
+                        <button
+                          onClick={() => handleDelete(file)}
+                          className="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          title="Delete invoice"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
                   ))
