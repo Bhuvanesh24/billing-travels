@@ -27,6 +27,33 @@ export default function CreateInvoice() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
+  // Helper: parse ISO datetime string into { date, hour12, minute, ampm }
+  const parseDatetime = (isoStr: string) => {
+    if (!isoStr) return { date: '', hour12: '12', minute: '00', ampm: 'AM' };
+    const d = new Date(isoStr);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const h24 = d.getHours();
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = String(h24 % 12 || 12);
+    return { date: `${yyyy}-${mm}-${dd}`, hour12: h12, minute: min, ampm };
+  };
+
+  // Helper: build ISO datetime string from date + 12h time parts
+  const buildDatetime = (date: string, hour12: string, minute: string, ampm: string) => {
+    if (!date) return '';
+    let h24 = parseInt(hour12, 10);
+    if (ampm === 'AM' && h24 === 12) h24 = 0;
+    else if (ampm === 'PM' && h24 !== 12) h24 += 12;
+    return `${date}T${String(h24).padStart(2, '0')}:${minute}`;
+  };
+
+  // Decomposed start/end time parts
+  const startParts = parseDatetime(startTime);
+  const endParts = parseDatetime(endTime);
+
   // Rent Calculation
   const [rentType, setRentType] = useState<RentType>('fixed');
   const [fixedAmount, setFixedAmount] = useState(0);
@@ -415,23 +442,81 @@ export default function CreateInvoice() {
                     onChange={e => setEndKm(Number(e.target.value))}
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-xs text-slate-500 mb-1">Start Time</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                  />
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      value={startParts.date}
+                      onChange={e => setStartTime(buildDatetime(e.target.value, startParts.hour12, startParts.minute, startParts.ampm))}
+                    />
+                    <select
+                      className="w-16 px-2 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                      value={startParts.hour12}
+                      onChange={e => setStartTime(buildDatetime(startParts.date, e.target.value, startParts.minute, startParts.ampm))}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                        <option key={h} value={String(h)}>{String(h).padStart(2, '0')}</option>
+                      ))}
+                    </select>
+                    <span className="text-slate-400 font-bold">:</span>
+                    <select
+                      className="w-16 px-2 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                      value={startParts.minute}
+                      onChange={e => setStartTime(buildDatetime(startParts.date, startParts.hour12, e.target.value, startParts.ampm))}
+                    >
+                      {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-16 px-2 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium"
+                      value={startParts.ampm}
+                      onChange={e => setStartTime(buildDatetime(startParts.date, startParts.hour12, startParts.minute, e.target.value))}
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-xs text-slate-500 mb-1">End Time</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                  />
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      value={endParts.date}
+                      onChange={e => setEndTime(buildDatetime(e.target.value, endParts.hour12, endParts.minute, endParts.ampm))}
+                    />
+                    <select
+                      className="w-16 px-2 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                      value={endParts.hour12}
+                      onChange={e => setEndTime(buildDatetime(endParts.date, e.target.value, endParts.minute, endParts.ampm))}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                        <option key={h} value={String(h)}>{String(h).padStart(2, '0')}</option>
+                      ))}
+                    </select>
+                    <span className="text-slate-400 font-bold">:</span>
+                    <select
+                      className="w-16 px-2 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                      value={endParts.minute}
+                      onChange={e => setEndTime(buildDatetime(endParts.date, endParts.hour12, e.target.value, endParts.ampm))}
+                    >
+                      {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-16 px-2 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium"
+                      value={endParts.ampm}
+                      onChange={e => setEndTime(buildDatetime(endParts.date, endParts.hour12, endParts.minute, e.target.value))}
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-500 mb-1">Free KM</label>
